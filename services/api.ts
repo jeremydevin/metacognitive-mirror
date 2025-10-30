@@ -284,6 +284,18 @@ class MockApi {
     return newDeck;
   }
 
+  async deleteDeck(deckId: string): Promise<void> {
+    this.assertUser();
+    
+    let decks = this.getTable<Deck>('decks');
+    let cards = this.getTable<Card>('cards');
+    let studyLogs = this.getTable<StudyLog>('studyLogs');
+
+    this.setTable('decks', decks.filter(d => d.id !== deckId));
+    this.setTable('cards', cards.filter(c => c.deckId !== deckId));
+    this.setTable('studyLogs', studyLogs.filter(l => l.deckId !== deckId));
+  }
+
   async getCards(deckId: string): Promise<Card[]> {
     this.assertUser();
     return this.getTable<Card>('cards').filter(c => c.deckId === deckId);
@@ -306,6 +318,12 @@ class MockApi {
     cards.push(newCard);
     this.setTable('cards', cards);
     return newCard;
+  }
+
+  async deleteCard(cardId: string): Promise<void> {
+    this.assertUser();
+    let cards = this.getTable<Card>('cards');
+    this.setTable('cards', cards.filter(c => c.id !== cardId));
   }
 
   async getDueCards(deckId: string): Promise<Card[]> {

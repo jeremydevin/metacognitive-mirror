@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode, useMemo } from 'react';
 import { User, Deck, Card, StudyLog } from '../types';
 import { api, AuthCredentials } from '../services/api';
@@ -12,8 +11,10 @@ interface AppContextType {
   getDecks: () => Promise<Deck[]>;
   getDeck: (deckId: string) => Promise<Deck | null>;
   addDeck: (title: string, description: string) => Promise<Deck>;
+  deleteDeck: (deckId: string) => Promise<void>;
   getCards: (deckId: string) => Promise<Card[]>;
   addCard: (deckId: string, question: string, answer: string) => Promise<Card>;
+  deleteCard: (cardId: string) => Promise<void>;
   getDueCards: (deckId: string) => Promise<Card[]>;
   updateCardAfterStudy: (cardId: string, confidence: number, performance: number) => Promise<void>;
   getStudyLogs: (deckId?: string) => Promise<StudyLog[]>;
@@ -56,8 +57,10 @@ export const AppContextProvider: React.FC<{ children: ReactNode }> = ({ children
     getDecks: () => api.getDecks(),
     getDeck: (deckId: string) => api.getDeck(deckId),
     addDeck: (title: string, description: string) => api.addDeck(title, description),
+    deleteDeck: (deckId: string) => api.deleteDeck(deckId),
     getCards: (deckId: string) => api.getCards(deckId),
     addCard: (deckId: string, question: string, answer: string) => api.addCard(deckId, question, answer),
+    deleteCard: (cardId: string) => api.deleteCard(cardId),
     getDueCards: (deckId: string) => api.getDueCards(deckId),
     updateCardAfterStudy: (cardId: string, confidence: number, performance: number) => api.updateCardAfterStudy(cardId, confidence, performance),
     getStudyLogs: (deckId?: string) => api.getStudyLogs(deckId),
