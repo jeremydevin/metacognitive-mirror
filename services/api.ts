@@ -1,21 +1,25 @@
 import { User, Deck, Card, StudyLog } from '../types';
 
-// --- Spaced Repetition Logic (simplified SM-2) ---
+// --- Metacognitive Spaced Repetition Logic (modified SM-2) ---
 const MIN_EASE_FACTOR = 1.3;
 
-function calculateSpacedRepetition(card: Card, performance: number): Partial<Card> {
+function calculateSpacedRepetition(card: Card, confidence: number, performance: number): Partial<Card> {
   let { easeFactor, interval } = card;
 
+  // --- Base SM-2 Calculation ---
   if (performance < 3) {
-    // Incorrect
-    interval = 1;
+    // Incorrect answer
+    interval = 1; // Reset interval
+    easeFactor = Math.max(MIN_EASE_FACTOR, easeFactor - 0.2); // Decrease ease factor
   } else {
-    // Correct or Close
+    // Correct or partially correct answer
+    // Calculate new ease factor
     easeFactor = easeFactor + (0.1 - (5 - performance) * (0.08 + (5 - performance) * 0.02));
     if (easeFactor < MIN_EASE_FACTOR) {
       easeFactor = MIN_EASE_FACTOR;
     }
     
+    // Calculate new interval
     if (interval <= 1) {
       interval = 6;
     } else {
@@ -23,8 +27,23 @@ function calculateSpacedRepetition(card: Card, performance: number): Partial<Car
     }
   }
 
+  // --- Metacognitive Adjustments ---
+
+  // Scenario 1: Overconfident & Wrong (The "Illusion of Competence")
+  // User was highly confident (4 or 5) but incorrect (0). This is a critical learning failure.
+  if (confidence >= 4 && performance === 0) {
+    interval = 1; // Drastic reset, ensuring it's seen tomorrow.
+    easeFactor = Math.max(MIN_EASE_FACTOR, easeFactor - 0.2); // Extra penalty to ease factor
+  }
+
+  // Scenario 2: Under-confident & Right
+  // User was not confident (1 or 2) but completely correct (5). They know it better than they thought.
+  if (confidence <= 2 && performance === 5) {
+    interval = Math.round(interval * 1.2); // Give a 20% interval bonus to reward this accurate knowledge.
+  }
+
   const nextReviewDate = new Date();
-  nextReviewDate.setDate(nextReviewDate.getDate() + interval);
+  nextReviewDate.setDate(nextReviewDate.getDate() + Math.max(1, interval)); // Ensure interval is at least 1 day
 
   return {
     easeFactor,
@@ -32,6 +51,7 @@ function calculateSpacedRepetition(card: Card, performance: number): Partial<Car
     nextReviewDate: nextReviewDate.toISOString(),
   };
 }
+
 
 // --- Mock API with localStorage persistence ---
 
@@ -340,7 +360,7 @@ class MockApi {
     if (cardIndex === -1) throw new Error('Card not found');
 
     const card = cards[cardIndex];
-    const updatedSrData = calculateSpacedRepetition(card, performance);
+    const updatedSrData = calculateSpacedRepetition(card, confidence, performance);
 
     cards[cardIndex] = {
       ...card,
