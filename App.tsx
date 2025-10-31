@@ -1,7 +1,11 @@
-
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppContextProvider, useApp } from './contexts/AppContext';
+
+// This import will be needed for Auth.js.
+// In a real project, you would install next-auth.
+// For now, we are adding the necessary provider wrapper.
+import { SessionProvider } from 'next-auth/react';
 
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
@@ -82,11 +86,14 @@ const AppRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AppContextProvider>
-      <HashRouter>
-        <AppRoutes />
-      </HashRouter>
-    </AppContextProvider>
+    // SessionProvider is the new top-level provider for authentication
+    <SessionProvider>
+      <AppContextProvider>
+        <HashRouter>
+          <AppRoutes />
+        </HashRouter>
+      </AppContextProvider>
+    </SessionProvider>
   );
 };
 

@@ -1,12 +1,13 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, ReactNode, useMemo } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import { User, Deck, Card, StudyLog } from '../types';
 import { api, AuthCredentials } from '../services/api';
 
 interface AppContextType {
   user: User | null;
   loading: boolean;
-  login: (credentials: AuthCredentials) => Promise<User>;
-  signup: (credentials: AuthCredentials) => Promise<User>;
+  login: (credentials: Pick<AuthCredentials, 'email' | 'password'>) => Promise<any>;
+  signup: (credentials: AuthCredentials) => Promise<any>;
   logout: () => void;
   getDecks: () => Promise<Deck[]>;
   getDeck: (deckId: string) => Promise<Deck | null>;
@@ -23,36 +24,48 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // The source of truth for auth state now comes from Auth.js
+  const { data: session, status } = useSession();
 
-  useEffect(() => {
-    const initialize = async () => {
-      await api.init();
-      const currentUser = api.getCurrentUser();
-      setUser(currentUser);
-      setLoading(false);
-    };
-    initialize();
-  }, []);
+  const loading = status === 'loading';
+  const user = session?.user as User | null;
 
   const authApi = useMemo(() => ({
-    login: async (credentials: AuthCredentials) => {
-      const loggedInUser = await api.login(credentials);
-      setUser(loggedInUser);
-      return loggedInUser;
+    // Login now uses the signIn function from next-auth
+    login: async (credentials: Pick<AuthCredentials, 'email' | 'password'>) => {
+      const result = await signIn('credentials', {
+        redirect: false,
+        email: credentials.email,
+        password: credentials.password,
+      });
+
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+      return result;
     },
+    // Signup hits our custom API endpoint
     signup: async (credentials: AuthCredentials) => {
-      const newUser = await api.signup(credentials);
-      setUser(newUser);
-      return newUser;
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Signup failed');
+      }
+      // After successful signup, log the user in
+      return authApi.login(credentials);
     },
+    // Logout uses the signOut function
     logout: () => {
-      api.logout();
-      setUser(null);
+      signOut({ callbackUrl: '/auth' });
     }
   }), []);
 
+  // The database API calls remain the same, but now they will hit our real API endpoints
   const dbApi = useMemo(() => ({
     getDecks: () => api.getDecks(),
     getDeck: (deckId: string) => api.getDeck(deckId),
