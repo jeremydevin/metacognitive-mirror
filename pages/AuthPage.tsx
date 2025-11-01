@@ -10,7 +10,7 @@ const AuthPage: React.FC = () => {
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, signup } = useApp();
+  const { login, signup, enableDemoMode } = useApp();
   const navigate = useNavigate();
 
   const validateEmail = (emailValue: string) => {
@@ -81,6 +81,11 @@ const AuthPage: React.FC = () => {
     }
   };
 
+  const handleTryDemo = () => {
+    enableDemoMode();
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
       <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-lg shadow-lg">
@@ -145,17 +150,34 @@ const AuthPage: React.FC = () => {
             </button>
           </div>
         </form>
-        <div className="text-sm text-center">
-          <button 
+        <div className="space-y-4">
+          <div className="text-sm text-center">
+            <button 
+              type="button"
+              onClick={() => { 
+                setIsLogin(!isLogin); 
+                setError(''); 
+                setEmailError('');
+              }} 
+              className="font-medium text-violet-400 hover:text-violet-300"
+            >
+              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+            </button>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-slate-800 text-slate-400">OR</span>
+            </div>
+          </div>
+          <button
             type="button"
-            onClick={() => { 
-              setIsLogin(!isLogin); 
-              setError(''); 
-              setEmailError('');
-            }} 
-            className="font-medium text-violet-400 hover:text-violet-300"
+            onClick={handleTryDemo}
+            className="w-full flex justify-center py-2 px-4 border-2 border-violet-600 text-sm font-medium rounded-md text-violet-400 bg-transparent hover:bg-violet-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 transition-colors"
           >
-            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+            Try Demo
           </button>
         </div>
       </div>

@@ -1,14 +1,17 @@
-import React, { createContext, useContext, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, ReactNode, useMemo, useState } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { User, Deck, Card, StudyLog } from '../types';
 import { api, AuthCredentials } from '../services/api';
+import { demoDeck, demoCards, demoStudyLogs } from '../lib/demoData';
 
 interface AppContextType {
   user: User | null;
   loading: boolean;
+  isDemoMode: boolean;
+  enableDemoMode: () => void;
   login: (credentials: Pick<AuthCredentials, 'email' | 'password'>) => Promise<any>;
   signup: (credentials: AuthCredentials) => Promise<any>;
-  logout: () => void;
+  logout: () => Promise<void>;
   getDecks: () => Promise<Deck[]>;
   getDeck: (deckId: string) => Promise<Deck | null>;
   addDeck: (title: string, description: string) => Promise<Deck>;
@@ -26,9 +29,21 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // The source of truth for auth state now comes from Auth.js
   const { data: session, status } = useSession();
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const loading = status === 'loading';
   const user = session?.user as User | null;
+  
+  // Reset demo mode when user logs in
+  useEffect(() => {
+    if (user && isDemoMode) {
+      setIsDemoMode(false);
+    }
+  }, [user, isDemoMode]);
+
+  const enableDemoMode = () => {
+    setIsDemoMode(true);
+  };
 
   const authApi = useMemo(() => ({
     // Login now uses the signIn function from next-auth
@@ -40,7 +55,16 @@ export const AppContextProvider: React.FC<{ children: ReactNode }> = ({ children
       });
 
       if (result?.error) {
-        throw new Error(result.error);
+        // Map NextAuth error codes to user-friendly messages
+        const errorMessages: { [key: string]: string } = {
+          'CredentialsSignin': 'Invalid email or password',
+          'Configuration': 'Invalid email or password',
+          'AccessDenied': 'Access denied',
+          'Verification': 'Verification failed',
+        };
+        
+        const errorMessage = errorMessages[result.error] || result.error || 'Authentication failed';
+        throw new Error(errorMessage);
       }
       return result;
     },
@@ -59,29 +83,100 @@ export const AppContextProvider: React.FC<{ children: ReactNode }> = ({ children
       // After successful signup, log the user in
       return authApi.login(credentials);
     },
-    // Logout uses the signOut function
-    logout: () => {
-      signOut({ callbackUrl: '/auth' });
+    // Logout uses the signOut function without redirect (we'll handle navigation in the component)
+    logout: async () => {
+      setIsDemoMode(false);
+      await signOut({ redirect: false });
     }
   }), []);
 
-  // The database API calls remain the same, but now they will hit our real API endpoints
+  // The database API calls - return demo data if in demo mode
   const dbApi = useMemo(() => ({
-    getDecks: () => api.getDecks(),
-    getDeck: (deckId: string) => api.getDeck(deckId),
-    addDeck: (title: string, description: string) => api.addDeck(title, description),
-    deleteDeck: (deckId: string) => api.deleteDeck(deckId),
-    getCards: (deckId: string) => api.getCards(deckId),
-    addCard: (deckId: string, question: string, answer: string) => api.addCard(deckId, question, answer),
-    deleteCard: (cardId: string) => api.deleteCard(cardId),
-    getDueCards: (deckId: string) => api.getDueCards(deckId),
-    updateCardAfterStudy: (cardId: string, confidence: number, performance: number) => api.updateCardAfterStudy(cardId, confidence, performance),
-    getStudyLogs: (deckId?: string) => api.getStudyLogs(deckId),
-  }), []);
+    getDecks: () => {
+      if (isDemoMode) {
+        return Promise.resolve([demoDeck]);
+      }
+      return api.getDecks();
+    },
+    getDeck: (deckId: string) => {
+      if (isDemoMode && deckId === 'demo-deck-1') {
+        return Promise.resolve(demoDeck);
+      }
+      if (isDemoMode) {
+        return Promise.resolve(null);
+      }
+      return api.getDeck(deckId);
+    },
+    addDeck: (title: string, description: string) => {
+      if (isDemoMode) {
+        throw new Error('Cannot save data in demo mode. Please create an account to save your decks.');
+      }
+      return api.addDeck(title, description);
+    },
+    deleteDeck: (deckId: string) => {
+      if (isDemoMode) {
+        throw new Error('Cannot save data in demo mode. Please create an account to manage your decks.');
+      }
+      return api.deleteDeck(deckId);
+    },
+    getCards: (deckId: string) => {
+      if (isDemoMode && deckId === 'demo-deck-1') {
+        return Promise.resolve(demoCards);
+      }
+      if (isDemoMode) {
+        return Promise.resolve([]);
+      }
+      return api.getCards(deckId);
+    },
+    addCard: (deckId: string, question: string, answer: string) => {
+      if (isDemoMode) {
+        throw new Error('Cannot save data in demo mode. Please create an account to save your cards.');
+      }
+      return api.addCard(deckId, question, answer);
+    },
+    deleteCard: (cardId: string) => {
+      if (isDemoMode) {
+        throw new Error('Cannot save data in demo mode. Please create an account to manage your cards.');
+      }
+      return api.deleteCard(cardId);
+    },
+    getDueCards: (deckId: string) => {
+      if (isDemoMode && deckId === 'demo-deck-1') {
+        // Return cards that are due (nextReviewDate <= now)
+        const now = new Date();
+        return Promise.resolve(demoCards.filter(card => new Date(card.nextReviewDate) <= now));
+      }
+      if (isDemoMode) {
+        return Promise.resolve([]);
+      }
+      return api.getDueCards(deckId);
+    },
+    updateCardAfterStudy: (cardId: string, confidence: number, performance: number) => {
+      if (isDemoMode) {
+        // In demo mode, simulate updating the card (but don't persist)
+        return Promise.resolve();
+      }
+      return api.updateCardAfterStudy(cardId, confidence, performance);
+    },
+    getStudyLogs: (deckId?: string) => {
+      if (isDemoMode) {
+        if (deckId && deckId === 'demo-deck-1') {
+          return Promise.resolve(demoStudyLogs);
+        }
+        if (!deckId) {
+          return Promise.resolve(demoStudyLogs);
+        }
+        return Promise.resolve([]);
+      }
+      return api.getStudyLogs(deckId);
+    },
+  }), [isDemoMode]);
 
   const value: AppContextType = {
-    user,
-    loading,
+    user: isDemoMode ? { id: 'demo-user', email: 'demo@example.com' } : user,
+    loading: isDemoMode ? false : loading,
+    isDemoMode,
+    enableDemoMode,
     ...authApi,
     ...dbApi,
   };

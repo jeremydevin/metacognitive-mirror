@@ -4,11 +4,11 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 
 const Header: React.FC = () => {
-    const { logout } = useApp();
+    const { logout, isDemoMode } = useApp();
     const navigate = useNavigate();
 
-    const handleLogout = () => {
-        logout();
+    const handleLogout = async () => {
+        await logout();
         navigate('/auth');
     };
 
@@ -23,6 +23,9 @@ const Header: React.FC = () => {
                 <div className="flex items-center justify-between h-16">
                     <div className="flex items-center">
                         <span className="text-white font-bold text-xl">Metacognitive Mirror</span>
+                        {isDemoMode && (
+                            <span className="ml-3 text-xs text-yellow-400 bg-yellow-900/30 px-2 py-1 rounded">DEMO</span>
+                        )}
                         <nav className="hidden md:block ml-10">
                             <div className="flex items-baseline space-x-4">
                                 <NavLink to="/" end className={navLinkClasses}>My Decks</NavLink>

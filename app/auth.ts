@@ -2,6 +2,7 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
+import { CredentialsSignin } from "next-auth";
 import prisma from "../lib/prisma";
 import bcrypt from 'bcrypt';
 import { loginSchema } from "../lib/validation";
@@ -12,6 +13,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Credentials({
       name: "Credentials",
       async authorize(credentials) {
+        try {
         if (!credentials?.email || !credentials.password) {
           throw new Error("Missing credentials");
         }
@@ -34,16 +36,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
 
         if (!user || !user.password) {
-          throw new Error("Invalid email or password.");
+          // Throw CredentialsSignin error with specific message
+          throw new CredentialsSignin("Invalid email or password");
         }
 
         const isValid = await bcrypt.compare(password, user.password);
 
         if (!isValid) {
-          throw new Error("Invalid email or password.");
+          // Throw CredentialsSignin error with specific message
+          throw new CredentialsSignin("Invalid email or password");
         }
 
         return { id: user.id, email: user.email, name: user.name };
+        } catch (error: any) {
+          // If it's already a CredentialsSignin error, re-throw it
+          if (error instanceof CredentialsSignin) {
+            throw error;
+          }
+          // For other errors, wrap with CredentialsSignin
+          throw new CredentialsSignin(error.message || "Authentication failed");
+        }
       },
     }),
   ],

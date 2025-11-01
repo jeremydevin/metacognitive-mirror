@@ -15,9 +15,9 @@ import MirrorPage from './pages/MirrorPage';
 import Layout from './components/Layout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useApp();
+  const { user, loading, isDemoMode } = useApp();
 
-  if (loading) {
+  if (loading && !isDemoMode) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-900 text-white">
         Loading...
@@ -25,7 +25,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  if (!user) {
+  if (!user && !isDemoMode) {
     return <Navigate to="/auth" replace />;
   }
 
@@ -33,9 +33,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const AppRoutes: React.FC = () => {
-  const { user, loading } = useApp();
+  const { user, loading, isDemoMode } = useApp();
   
-  if (loading) {
+  if (loading && !isDemoMode) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-900 text-white">
         Loading...
@@ -45,7 +45,7 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/" /> : <AuthPage />} />
+      <Route path="/auth" element={(user || isDemoMode) ? <Navigate to="/" /> : <AuthPage />} />
       <Route
         path="/"
         element={
@@ -78,7 +78,7 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to={user ? "/" : "/auth"} />} />
+      <Route path="*" element={<Navigate to={(user || isDemoMode) ? "/" : "/auth"} />} />
     </Routes>
   );
 };
