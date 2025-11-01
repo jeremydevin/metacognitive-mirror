@@ -1,19 +1,69 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useNavigate } from 'react-router-dom';
+import { isValidEmail } from '../lib/validation';
 
 const AuthPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login, signup } = useApp();
   const navigate = useNavigate();
 
+  const validateEmail = (emailValue: string) => {
+    if (!emailValue) {
+      setEmailError('');
+      return false;
+    }
+    if (!isValidEmail(emailValue)) {
+      setEmailError('Please enter a valid email address');
+      return false;
+    }
+    setEmailError('');
+    return true;
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const emailValue = e.target.value;
+    setEmail(emailValue);
+    // Clear errors when user starts typing (but don't validate yet)
+    setError('');
+    // Only clear email error if it exists - validation will happen on blur
+    if (emailError && emailValue) {
+      setEmailError('');
+    }
+  };
+
+  const handleEmailBlur = () => {
+    // Only validate when user leaves the field
+    if (email) {
+      validateEmail(email);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setEmailError('');
+
+    // Client-side validation
+    if (!email) {
+      setEmailError('Email is required');
+      return;
+    }
+
+    if (!password) {
+      setError('Password is required');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      return;
+    }
+
     setLoading(true);
     try {
       if (isLogin) {
@@ -49,11 +99,23 @@ const AuthPage: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-violet-500 focus:border-violet-500 focus:z-10 sm:text-sm rounded-t-md"
+                className={`appearance-none rounded-none relative block w-full px-3 py-2 border transition-colors duration-200 ${
+                  emailError ? 'border-red-500' : 'border-slate-600'
+                } bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-violet-500 focus:border-violet-500 focus:z-10 sm:text-sm rounded-t-md`}
                 placeholder="Email address"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
+                onBlur={handleEmailBlur}
               />
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  emailError ? 'max-h-20 opacity-100 mt-1' : 'max-h-0 opacity-0 mt-0'
+                }`}
+              >
+                {emailError && (
+                  <p className="text-red-500 text-xs px-3">{emailError}</p>
+                )}
+              </div>
             </div>
             <div>
               <label htmlFor="password" className="sr-only">Password</label>
@@ -84,7 +146,15 @@ const AuthPage: React.FC = () => {
           </div>
         </form>
         <div className="text-sm text-center">
-          <button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="font-medium text-violet-400 hover:text-violet-300">
+          <button 
+            type="button"
+            onClick={() => { 
+              setIsLogin(!isLogin); 
+              setError(''); 
+              setEmailError('');
+            }} 
+            className="font-medium text-violet-400 hover:text-violet-300"
+          >
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
         </div>

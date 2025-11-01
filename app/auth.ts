@@ -2,8 +2,9 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
-import prisma from "../lib/prisma"; // Adjust path if ../lib/prisma.ts is correct
+import prisma from "../lib/prisma";
 import bcrypt from 'bcrypt';
+import { loginSchema } from "../lib/validation";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -15,21 +16,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error("Missing credentials");
         }
 
-        const email = credentials.email as string;
-        const password = credentials.password as string;
+        // Validate email format
+        const validationResult = loginSchema.safeParse({
+          email: credentials.email,
+          password: credentials.password,
+        });
+
+        if (!validationResult.success) {
+          const firstError = validationResult.error.issues[0];
+          throw new Error(firstError.message);
+        }
+
+        const { email, password } = validationResult.data;
 
         const user = await prisma.user.findUnique({
-          where: { email: email },
+          where: { email },
         });
 
         if (!user || !user.password) {
-          throw new Error("No user found with this email.");
+          throw new Error("Invalid email or password.");
         }
 
         const isValid = await bcrypt.compare(password, user.password);
 
         if (!isValid) {
-          throw new Error("Incorrect password.");
+          throw new Error("Invalid email or password.");
         }
 
         return { id: user.id, email: user.email, name: user.name };
